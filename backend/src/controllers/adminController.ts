@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import pool from "../config/db"; // this should be your PostgreSQL pool
+import pool from "../config/db";
 
 export const getPendingFighters = async (req: Request, res: Response) => {
     try {
@@ -40,7 +40,6 @@ export const approveFighter = async (req: Request, res: Response) => {
     try {
         await client.query("BEGIN");
 
-        // Update fighter status
         const updateFighterSql = `
             UPDATE fighters
             SET status = 'verified'
@@ -84,14 +83,12 @@ export const rejectFighter = async (req: Request, res: Response) => {
     try {
         await client.query("BEGIN");
 
-        // Get user_id before deleting fighter
         const fighterRes = await client.query(
             "SELECT user_id FROM fighters WHERE id = $1",
             [id]
         );
         const userId = fighterRes.rows[0]?.user_id;
 
-        // Delete fighter
         const deleteFighterSql = "DELETE FROM fighters WHERE id = $1";
         const deleteResult = await client.query(deleteFighterSql, [id]);
 
@@ -100,7 +97,6 @@ export const rejectFighter = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Fighter not found." });
         }
 
-        // Delete user if exists
         if (userId) {
             const deleteUserSql = "DELETE FROM users WHERE id = $1";
             await client.query(deleteUserSql, [userId]);

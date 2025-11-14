@@ -3,20 +3,23 @@ USE valor;
 DROP TABLE IF EXISTS divisions;
 CREATE TABLE divisions
 (
-    id         SERIAL PRIMARY KEY,
-    gender     VARCHAR(6)    NOT NULL CHECK (gender IN ('Male', 'Female')),
-    name       VARCHAR(255)  NOT NULL,
-    weight_max NUMERIC(5, 2) NOT NULL
+    id          SERIAL PRIMARY KEY,
+    gender      VARCHAR(6)    NOT NULL CHECK (gender IN ('male', 'female')),
+    name        VARCHAR(255)  NOT NULL,
+    min_weight  NUMERIC(5, 2) NOT NULL,
+    max_weight  NUMERIC(5, 2) NOT NULL
 );
 
-INSERT INTO divisions (id, gender, name, weight_max)
-VALUES (1, 'Male', 'Light', 165.00),
-       (2, 'Male', 'Welter', 190.00),
-       (3, 'Male', 'Light Heavy', 215.00),
-       (4, 'Male', 'Heavy', 285.00),
-       (5, 'Female', 'Flyweight', 125.00),
-       (6, 'Female', 'Bantamweight', 145.00),
-       (7, 'Female', 'Open/Heavy', 185.00);
+-- Insert values including both min and max weight
+INSERT INTO divisions (gender, name, min_weight, max_weight)
+VALUES
+    ('male', 'Lightweight', 0.00, 165.00),
+    ('male', 'Welterweight', 165.00, 190.00),
+    ('male', 'Light Heavyweight', 190.00, 215.00),
+    ('male', 'Heavyweight', 215.00, 285.00),
+    ('female', 'Flyweight', 0.00, 125.00),
+    ('female', 'Bantamweight', 125.00, 145.00),
+    ('female', 'Open/Heavyweight', 145.00, 185.00);
 
 -- Events table
 DROP TABLE IF EXISTS events;
@@ -45,7 +48,7 @@ CREATE TABLE users
     nonce          VARCHAR(255),
     nationality    VARCHAR(100),
     is_military    BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at     TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     email          VARCHAR(255) UNIQUE,
     password       VARCHAR(255),
     name           VARCHAR(255),
@@ -56,22 +59,34 @@ CREATE TABLE users
 DROP TABLE IF EXISTS fighters;
 CREATE TABLE fighters
 (
-    id           SERIAL PRIMARY KEY,
-    user_id      INT          REFERENCES users (id) ON DELETE SET NULL,
-    name         VARCHAR(255) NOT NULL,
-    country      VARCHAR(100),
-    division     VARCHAR(100),
-    weight       NUMERIC(5, 2),
-    gender       VARCHAR(6) CHECK (gender IN ('male', 'female')),
-    wins         INT         DEFAULT 0,
-    losses       INT         DEFAULT 0,
-    draws        INT         DEFAULT 0,
-    image        VARCHAR(1024),
-    ranking      INT,
-    bio          TEXT,
-    achievements JSON,
-    sponsors     JSON,
-    status       VARCHAR(10) DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'inactive'))
+    -- id           SERIAL PRIMARY KEY,
+    -- user_id      INT          REFERENCES users (id) ON DELETE SET NULL,
+    -- name         VARCHAR(255) NOT NULL,
+    -- country      VARCHAR(100),
+    -- division     VARCHAR(100),
+    -- weight       NUMERIC(5, 2),
+    -- gender       VARCHAR(6) CHECK (gender IN ('male', 'female')),
+    -- wins         INT         DEFAULT 0,
+    -- losses       INT         DEFAULT 0,
+    -- draws        INT         DEFAULT 0,
+    -- image        VARCHAR(1024),
+    -- ranking      INT,
+    -- bio          TEXT,
+    -- achievements JSON,
+    -- sponsors     JSON,
+    -- status       VARCHAR(10) DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'inactive'))
+
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    name VARCHAR(255) NOT NULL,
+    bio TEXT,
+    division_id INT,
+    nationality VARCHAR(100),
+    status ENUM('pending', 'verified', 'inactive') DEFAULT 'pending',
+    wins INT DEFAULT 0,
+    losses INT DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (division_id) REFERENCES divisions(id)
 );
 
 -- Sponsors table

@@ -32,7 +32,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/divisions", divisionRoutes);
 app.use("/api/v1/events", eventRoutes);
 app.use("/api/v1/dashboard/admin", adminRoutes);
-app.use("/api/v1/dashboard/fighter", fighterRoutes);
+// app.use("/api/v1/dashboard/fighter", fighterRoutes);
 app.use("/api/v1/dashboard/sponsor", sponsorRoutes);
 
 const PORT = process.env.PORT || 3000;

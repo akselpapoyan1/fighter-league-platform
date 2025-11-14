@@ -242,7 +242,7 @@ const FighterForm = () => {
             <SelectContent>
               {availableDivisions.map((division) => (
                 <SelectItem key={division.id} value={division.name}>
-                  {division.name} ({division.minWeight} -{division.maxWeight}{" "}
+                  {division.name} ({division.min_weight} -{division.max_weight}{" "}
                   lbs)
                 </SelectItem>
               ))}

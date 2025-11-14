@@ -26,8 +26,8 @@ export interface Division {
   id: string;
   name: string;
   gender: "male" | "female";
-  minWeight: number;
-  maxWeight: number;
+  min_weight: number;
+  max_weight: number;
 }
 
 export interface Event {

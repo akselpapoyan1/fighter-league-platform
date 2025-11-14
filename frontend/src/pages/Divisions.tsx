@@ -44,8 +44,8 @@ const Divisions = () => {
         <div>
           <p className="text-sm text-muted-foreground">Weight Range</p>
           <p className="text-xl font-semibold text-primary">
-            {division.minWeight > 0 ? `${division.minWeight} - ` : "≤ "}
-            {division.maxWeight} lbs
+            {division.min_weight > 0 ? `${division.min_weight} - ` : "≤ "}
+            {division.max_weight} lbs
           </p>
         </div>
         <div className="pt-4 border-t border-border">

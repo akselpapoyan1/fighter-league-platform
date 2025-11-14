@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem("authToken");
       }
     }
-    setIsAuthLoading(false); // <-- UNCOMMENTED
+    setIsAuthLoading(false);
   }, []);
 
   const setToken = (newToken: string | null) => {

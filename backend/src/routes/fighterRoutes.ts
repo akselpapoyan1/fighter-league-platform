@@ -11,13 +11,17 @@ const router = express.Router();
 
 router.post(
   "/register",
-  // protect, // Keep this commented if registration is open
+  // protect,
   registerFighter
 );
 
 router.get("/", getAllFighters);
 
-router.get("/me", protect, getMyFighterProfile);
+router.get(
+  "/me",
+  //  protect,
+  getMyFighterProfile
+);
 
 router.get("/:id", getFighterById);
 
