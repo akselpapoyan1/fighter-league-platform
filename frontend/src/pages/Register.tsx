@@ -1,10 +1,8 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import DonorForm from "@/components/DonorForm";
-import FighterForm from "@/components/FighterForm";
-import SponsorForm from "@/components/SponsorForm";
+import { Tabs } from "@/components/ui/tabs";
+import RegisterFirstStep from "@/components/RegisterForms/RegisterFirstStep";
 
 const Register = () => {
   return (
@@ -25,22 +23,8 @@ const Register = () => {
 
         <section className="py-12">
           <div className="container max-w-2xl">
-            <Tabs defaultValue="fighter" className="">
-              <TabsList className="">
-                <TabsTrigger value="fighter">Register as Fighter</TabsTrigger>
-                <TabsTrigger value="sponsor">Register as Sponsor</TabsTrigger>
-                <TabsTrigger value="donor">Become a Donor</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="fighter" className="mt-6">
-                <FighterForm />
-              </TabsContent>
-              <TabsContent value="sponsor" className="mt-6">
-                <SponsorForm />
-              </TabsContent>
-              <TabsContent value="donor" className="mt-6">
-                <DonorForm />
-              </TabsContent>
+            <Tabs defaultValue="fighter">
+              <RegisterFirstStep />
             </Tabs>
           </div>
         </section>

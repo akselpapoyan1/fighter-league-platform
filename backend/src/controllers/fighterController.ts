@@ -1,13 +1,13 @@
 import { Request, Response } from "express";
 import db from "../config/db";
-import jwt from "jsonwebtoken";
-
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { QueryResult } from "pg";
 interface FighterFromDB {
   id: number;
   user_id: number | null;
   name: string;
   country: string;
-  division: string;
+  division_name: string;
   weight: number;
   gender: "male" | "female";
   wins: number;
@@ -21,135 +21,119 @@ interface FighterFromDB {
   status: "pending" | "verified" | "inactive";
 }
 
-const generateToken = (
-  id: number,
-  emailOrWallet: string,
-  user_type: string
-) => {
-  return jwt.sign(
-    { id, emailOrWallet, user_type },
-    process.env.JWT_SECRET as string,
-    { expiresIn: "30d" }
-  );
+const divisionMap: { [key: string]: number } = {
+  Lightweight: 1,
+  Welterweight: 2,
+  "Light Heavyweight": 3,
+  Heavyweight: 4,
+  Flyweight: 5,
+  Bantamweight: 6,
+  "Open/Heavyweight": 7,
+};
+
+const generateToken = (id: number, email: string, user_type: string) => {
+  return jwt.sign({ id, email, user_type }, process.env.JWT_SECRET as string, {
+    expiresIn: "30d",
+  });
 };
 
 const createRecordString = (w: number, l: number, d: number): string =>
   `${w}-${l}-${d}`;
 
-export const registerFighter = async (req: Request, res: Response) => {
+export const registerFighter = async (
+  req: Request<{}, {}, any>,
+  res: Response
+) => {
   const {
-    name,
+    email,
     country,
+    walletAddress,
     weight,
     gender,
     division,
-    bio,
-    image,
     wins,
     losses,
     draws,
-    walletAddress,
+    image,
+    bio,
     achievements,
   } = req.body;
 
-  if (
-    !name ||
-    !country ||
-    !weight ||
-    !gender ||
-    !division ||
-    wins === null ||
-    losses === null ||
-    draws === null
-  ) {
-    return res.status(400).json({ message: "Missing required fields." });
-  }
-
-  const numericWeight = parseFloat(weight);
-  if (isNaN(numericWeight))
-    return res.status(400).json({ message: "Weight must be a valid number." });
-  if (gender !== "male" && gender !== "female")
+  if (!email || !country || !weight || !gender || !division || !image) {
     return res
       .status(400)
-      .json({ message: 'Gender must be "male" or "female".' });
+      .json({ message: "Missing required fighter fields." });
+  }
 
-  const client = await db.connect();
+  const divisionId = divisionMap[division];
+
+  if (!divisionId) {
+    return res.status(400).json({ message: "Invalid division name provided." });
+  }
+
+  const achievementsJson = JSON.stringify(achievements || []);
+
   try {
-    await client.query("BEGIN");
+    await db.query("BEGIN");
 
-    let userId: number | null = null;
-    let token: string | null = null;
-    let user_type = "FAN";
-
-    if (walletAddress) {
-      const usersResult = await client.query(
-        "SELECT id, user_type FROM users WHERE wallet_address = $1",
-        [walletAddress]
-      );
-      if (usersResult.rows.length > 0) {
-        userId = usersResult.rows[0].id;
-        user_type = usersResult.rows[0].user_type;
-
-        const fighterCheck = await client.query(
-          "SELECT id FROM fighters WHERE user_id = $1",
-          [userId]
-        );
-        if (fighterCheck.rows.length > 0) {
-          await client.query("ROLLBACK");
-          return res.status(409).json({
-            message:
-              "A fighter profile is already associated with this wallet.",
-          });
-        }
-      } else {
-        const insertUser = await client.query(
-          "INSERT INTO users (wallet_address, user_type, name) VALUES ($1, $2, $3) RETURNING id",
-          [walletAddress, "FAN", name]
-        );
-        userId = insertUser.rows[0].id;
-      }
-    }
-
-    const achievementsJSON = JSON.stringify(achievements || []);
-    const insertFighter = await client.query(
-      `INSERT INTO fighters 
-        (user_id, name, country, division, weight, gender, wins, losses, draws, image, bio, achievements, sponsors, status) 
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
-      [
-        userId,
-        name,
-        country,
-        division,
-        numericWeight,
-        gender,
-        Number(wins),
-        Number(losses),
-        Number(draws),
-        image || null,
-        bio || null,
-        achievementsJSON,
-        "[]",
-        "pending",
-      ]
+    const userResult = await db.query(
+      "SELECT id, name FROM users WHERE email = $1",
+      [email]
     );
 
-    await client.query("COMMIT");
+    if (userResult.rows.length === 0) {
+      await db.query("ROLLBACK");
+      return res.status(404).json({ message: "User not found." });
+    }
 
-    if (userId && walletAddress)
-      token = generateToken(userId, walletAddress, user_type);
+    const userId = userResult.rows[0].id;
+    const userName = userResult.rows[0].name;
+
+    const updateUserQuery = `
+            UPDATE users 
+            SET user_type = 'FIGHTER', wallet_address = $1, country = $2
+            WHERE id = $3;
+        `;
+    await db.query(updateUserQuery, [walletAddress, country, userId]);
+
+    const insertFighterQuery = `
+            INSERT INTO fighters (
+                user_id, name, country, division_id, division, weight, gender, 
+                wins, losses, draws, image, bio, achievements, status
+            ) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending')
+            RETURNING id;
+        `;
+
+    const fighterInsertResult = await db.query(insertFighterQuery, [
+      userId,
+      userName,
+      country,
+      divisionId,
+      division,
+      weight,
+      gender,
+      wins || 0,
+      losses || 0,
+      draws || 0,
+      image,
+      bio,
+      achievementsJson,
+    ]);
+
+    await db.query("COMMIT");
 
     res.status(201).json({
-      message: "Fighter registration submitted for verification.",
-      fighterId: insertFighter.rows[0].id,
-      token,
-      user_type,
+      message:
+        "Fighter registration submitted successfully and user profile updated.",
+      fighterId: fighterInsertResult.rows[0].id,
     });
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error(err);
-    res.status(500).json({ message: "Server Error" });
-  } finally {
-    client.release();
+  } catch (error) {
+    await db.query("ROLLBACK");
+    console.error("Fighter registration failed:", error);
+    res.status(500).json({
+      message: "An internal server error occurred during registration.",
+    });
   }
 };
 
@@ -164,37 +148,53 @@ const safeParseJSON = (value: string | null): any[] => {
 };
 
 export const getAllFighters = async (req: Request, res: Response) => {
-  const { limit, sortBy, nationality } = req.query;
+  const { limit, sortBy, country } = req.query;
 
   try {
     let params: any[] = [];
     let sql = `
-        SELECT id, name, country, division, weight, gender,
-               wins, losses, draws, image, ranking, bio, achievements, sponsors, status
-        FROM fighters
-        WHERE status = 'verified'
+          SELECT 
+          f.id, 
+          f.name, 
+          f.country, 
+          f.weight, 
+          f.gender,
+          f.wins, 
+          f.losses, 
+          f.draws, 
+          f.image, 
+          f.ranking, 
+          f.bio, 
+          f.achievements, 
+          f.status,
+          f.sponsors,
+          d.name AS division_name
+        FROM fighters f
+        JOIN divisions d ON f.division_id = d.id
+        WHERE f.status = 'verified'
+
     `;
 
-    if (nationality) {
-      params.push(nationality);
-      sql += ` AND country = $${params.length}`;
+    if (country) {
+      params.push(country);
+      sql += ` AND f.country = $${params.length}`;
     }
 
     sql +=
-      sortBy === "ranking" ? " ORDER BY ranking ASC" : " ORDER BY name ASC";
+      sortBy === "ranking" ? " ORDER BY f.ranking ASC" : " ORDER BY f.name ASC";
 
     if (limit) {
       params.push(parseInt(limit as string, 10));
       sql += ` LIMIT $${params.length}`;
     }
 
-    const { rows: fightersFromDB } = await db.query<FighterFromDB>(sql, params);
+    const result: QueryResult = await db.query(sql, params);
 
-    const fighters = fightersFromDB.map((f) => ({
+    const fighters = result.rows.map((f: any) => ({
       id: f.id.toString(),
       name: f.name,
       country: f.country,
-      division: f.division,
+      division: f.division_name,
       weight: f.weight,
       gender: f.gender,
       record: createRecordString(f.wins, f.losses, f.draws),
@@ -210,7 +210,7 @@ export const getAllFighters = async (req: Request, res: Response) => {
 
     res.status(200).json(fighters);
   } catch (err) {
-    console.error(err);
+    console.error("Error in getAllFighters (PostgreSQL):", err);
     res.status(500).json({ message: "Server Error" });
   }
 };
@@ -220,20 +220,34 @@ export const getFighterById = async (req: Request, res: Response) => {
 
   try {
     const sql = `
-      SELECT id, name, country, division, weight, gender,
-             wins, losses, draws, image, ranking, bio, 
-             achievements, sponsors, status
-      FROM fighters
-      WHERE id = $1 AND status = 'verified'
+      SELECT 
+        f.id, 
+        f.name, 
+        f.country, 
+        f.weight, 
+        f.gender,
+        f.wins, 
+        f.losses, 
+        f.draws, 
+        f.image, 
+        f.ranking, 
+        f.bio, 
+        f.achievements, 
+        f.sponsors, 
+        f.status,
+        d.name AS division_name
+      FROM fighters f
+      JOIN divisions d ON f.division_id = d.id
+      WHERE f.id = $1 AND f.status = 'verified'
     `;
 
-    const { rows } = await db.query(sql, [id]);
+    const result: QueryResult = await db.query(sql, [id]);
 
-    if (rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ message: "Fighter not found" });
     }
 
-    const f = rows[0];
+    const f = result.rows[0];
 
     const safeParse = (value: any) => {
       if (Array.isArray(value)) return value;
@@ -249,7 +263,7 @@ export const getFighterById = async (req: Request, res: Response) => {
       id: f.id.toString(),
       name: f.name,
       country: f.country,
-      division: f.division,
+      division: f.division_name,
       weight: f.weight,
       gender: f.gender,
       record: `${f.wins}-${f.losses}-${f.draws}`,
@@ -265,7 +279,7 @@ export const getFighterById = async (req: Request, res: Response) => {
 
     return res.status(200).json(fighter);
   } catch (err) {
-    console.error("getFighterById error:", err);
+    console.error("getFighterById error (PostgreSQL):", err);
     return res.status(500).json({ message: "Server Error" });
   }
 };
@@ -277,19 +291,35 @@ export const getMyFighterProfile = async (req: Request, res: Response) => {
 
   try {
     const sql = `
-            SELECT id, name, country, division, weight, gender,
-                   wins, losses, draws, image, ranking, bio, achievements, sponsors, status
-            FROM fighters
-            WHERE user_id = $1
+            SELECT 
+                f.id, 
+                f.name, 
+                f.country, 
+                f.weight, 
+                f.gender,
+                f.wins, 
+                f.losses, 
+                f.draws, 
+                f.image, 
+                f.ranking, 
+                f.bio, 
+                f.achievements, 
+                f.sponsors, 
+                f.status,
+                d.name AS division_name
+            FROM fighters f
+            JOIN divisions d ON f.division_id = d.id
+            WHERE f.user_id = $1
         `;
-    const { rows } = await db.query<FighterFromDB>(sql, [userId]);
 
-    if (rows.length === 0)
+    const result: QueryResult = await db.query(sql, [userId]);
+
+    if (result.rows.length === 0)
       return res
         .status(404)
         .json({ message: "Fighter profile not found for this user." });
 
-    const f = rows[0];
+    const f = result.rows[0];
 
     if (f.status === "pending") {
       return res.status(403).json({
@@ -301,7 +331,7 @@ export const getMyFighterProfile = async (req: Request, res: Response) => {
       id: f.id.toString(),
       name: f.name,
       country: f.country,
-      division: f.division,
+      division: f.division_name,
       weight: f.weight,
       gender: f.gender,
       record: createRecordString(f.wins, f.losses, f.draws),
@@ -317,7 +347,7 @@ export const getMyFighterProfile = async (req: Request, res: Response) => {
 
     res.status(200).json(fighter);
   } catch (err) {
-    console.error(err);
+    console.error("getMyFighterProfile error (PostgreSQL):", err);
     res.status(500).json({ message: "Server Error" });
   }
 };

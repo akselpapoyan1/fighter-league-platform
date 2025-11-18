@@ -8,7 +8,7 @@ export const getNationData = async (req: Request, res: Response) => {
         const result = await pool.query(
             `SELECT id, name, status, wins, losses 
        FROM fighters 
-       WHERE nationality = $1 AND status = 'verified'`,
+       WHERE country = $1 AND status = 'verified'`,
             [countryCode]
         );
 

@@ -1,3 +1,6 @@
+import { Request, Response } from "express";
+import db from "../config/db";
+
 import express from "express";
 import {
   registerFighter,
@@ -9,13 +12,11 @@ import { protect } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
-router.post(
-  "/register",
-  // protect,
-  registerFighter
-);
-
 router.get("/", getAllFighters);
+
+router.get("/:id", getFighterById);
+
+router.post("/register", registerFighter);
 
 router.get(
   "/me",
@@ -23,6 +24,10 @@ router.get(
   getMyFighterProfile
 );
 
-router.get("/:id", getFighterById);
+router.post(
+  "/register",
+  // protect,
+  registerFighter
+);
 
 export default router;

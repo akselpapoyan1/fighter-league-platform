@@ -1,14 +1,18 @@
-import express from "express";
-import { protect } from "../middleware/authMiddleware";
+import { Router } from "express";
 import {
-  createSponsorProfile,
+  registerSponsor,
   getMySponsorProfile,
 } from "../controllers/sponsorController";
+import { protect } from "../middleware/authMiddleware";
 
-const router = express.Router();
+const router = Router();
 
 router.get("/me", protect, getMySponsorProfile);
 
-router.post("/me", protect, createSponsorProfile);
+router.post(
+  "/register",
+  //  protect,
+  registerSponsor
+);
 
 export default router;

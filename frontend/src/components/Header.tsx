@@ -65,6 +65,15 @@ export const Header = () => {
             </Link>
           </Button>
         );
+      case "GUEST":
+        return (
+          <Button variant="ghost" asChild>
+            <Link to="/dashboard/guest" className={commonClass}>
+              <User className={iconClass} />
+              Guest
+            </Link>
+          </Button>
+        );
       default:
         return null;
     }

@@ -15,6 +15,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Login from "./pages/Login";
 import FighterDashboard from "./pages/FighterDashboard";
 import SponsorDashboard from "./pages/SponsorDashboard";
+import RoleSelectionPage from "./pages/RoleSelectionPage";
 
 const queryClient = new QueryClient();
 
@@ -35,9 +36,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard/admin" element={<AdminDashboard />} />
             <Route path="/dashboard/fighter" element={<FighterDashboard />} />
-            {/*<Route path="/dashboard/donor" element={<FighterDashboard />} />*/}
-            {/*<Route path="/dashboard/sponsor" element={<SponsorDashboard />} />*/}
-
+            <Route path="/dashboard/guest" element={<RoleSelectionPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

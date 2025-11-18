@@ -1,6 +1,7 @@
 export interface Fighter {
   id: string;
   name: string;
+  email?: string;
   country: string;
   division: string;
   weight: number;

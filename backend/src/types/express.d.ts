@@ -1,7 +1,7 @@
 interface UserPayload {
   id: number;
   walletAddress: string;
-  nationality: string | null;
+  country: string | null;
   is_military: boolean;
 }
 

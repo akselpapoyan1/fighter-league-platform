@@ -10,6 +10,7 @@ import divisionRoutes from "./routes/divisionRoutes";
 import eventRoutes from "./routes/eventRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import sponsorRoutes from "./routes/sponsorRoutes";
+import donorRoutes from "./routes/donorRoutes";
 
 dotenv.config();
 const app: Express = express();
@@ -32,8 +33,8 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/divisions", divisionRoutes);
 app.use("/api/v1/events", eventRoutes);
 app.use("/api/v1/dashboard/admin", adminRoutes);
-// app.use("/api/v1/dashboard/fighter", fighterRoutes);
-app.use("/api/v1/dashboard/sponsor", sponsorRoutes);
+app.use("/api/v1/sponsor", sponsorRoutes);
+app.use("/api/v1/donor", donorRoutes);
 
 const PORT = process.env.PORT || 3000;
 

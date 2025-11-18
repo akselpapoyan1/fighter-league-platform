@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/fighter-deploy.iml" filepath="$PROJECT_DIR$/.idea/fighter-deploy.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/fighter-league-platform.iml" filepath="$PROJECT_DIR$/.idea/fighter-league-platform.iml" />
     </modules>
   </component>
 </project>

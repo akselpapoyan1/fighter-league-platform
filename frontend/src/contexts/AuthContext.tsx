@@ -15,15 +15,24 @@ interface LoginResponse {
 
 interface DecodedToken {
   id: number;
-  emailOrWallet: string;
+  email: string;
   user_type: string;
   iat: number;
   exp: number;
+  name: string;
+}
+
+interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+  user_type: string;
 }
 
 interface AuthContextType {
   token: string | null;
   userType: string | null;
+  currentUser: AuthUser | null;
   setToken: (token: string | null) => void;
   login: (walletAddress: string) => Promise<LoginResponse>;
   loginWithEmail: (email: string, password: string) => Promise<LoginResponse>;
@@ -37,12 +46,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setTokenState] = useState<string | null>(null);
   const [userType, setUserType] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     const storedToken = localStorage.getItem("authToken");
     if (storedToken) {
       try {
         const decoded = jwtDecode<DecodedToken>(storedToken);
+
+        setCurrentUser({
+          id: decoded.id,
+          email: decoded.email,
+          name: decoded.name,
+          user_type: decoded.user_type,
+        });
+
         setTokenState(storedToken);
         setUserType(decoded.user_type);
         apiClient.defaults.headers.common[
@@ -51,6 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("Invalid token:", error);
         localStorage.removeItem("authToken");
+        setCurrentUser(null);
       }
     }
     setIsAuthLoading(false);
@@ -61,6 +80,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (newToken) {
       try {
         const decoded = jwtDecode<DecodedToken>(newToken);
+
+        const user: AuthUser = {
+          id: decoded.id,
+          email: decoded.email,
+          name: decoded.name,
+          user_type: decoded.user_type,
+        };
+
+        setCurrentUser(user);
+
         setUserType(decoded.user_type);
         localStorage.setItem("authToken", newToken);
         apiClient.defaults.headers.common[
@@ -68,11 +97,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ] = `Bearer ${newToken}`;
       } catch (error) {
         console.error("Invalid token:", error);
+        setCurrentUser(null);
       }
     } else {
       setUserType(null);
       localStorage.removeItem("authToken");
       delete apiClient.defaults.headers.common["Authorization"];
+      setCurrentUser(null);
     }
   };
 
@@ -131,6 +162,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
   };
 
+  console.log(currentUser);
+
   return (
     <AuthContext.Provider
       value={{
@@ -141,6 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         loginWithEmail,
         logout,
+        currentUser,
       }}
     >
       {children}

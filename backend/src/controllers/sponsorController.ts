@@ -1,80 +1,97 @@
 import { Request, Response } from "express";
 import pool from "../config/db";
 
-export const createSponsorProfile = async (req: Request, res: Response) => {
-  const userId = req.user?.id;
-  const { company_name, website, logo_url, contact_email, description, tier } =
+interface SponsorRegistrationPayload {
+  email: string;
+  companyName: string;
+  logoUrl: string;
+  description: string;
+  tier: string;
+  walletAddress?: string;
+  user_type: string;
+}
+
+export const registerSponsor = async (
+  req: Request<{}, {}, SponsorRegistrationPayload>,
+  res: Response
+) => {
+  const { email, companyName, logoUrl, description, tier, walletAddress } =
     req.body;
-
-  if (!userId) {
-    return res.status(401).json({ message: "Authentication required." });
+  console.log('AAAAAAAAA')
+  if (!email || !companyName || !logoUrl) {
+    return res.status(400).json({
+      message:
+        "Missing required fields: user email, company name, and logo URL.",
+    });
   }
 
-  if (!company_name || !contact_email) {
-    return res
-      .status(400)
-      .json({ message: "Company name and contact email are required." });
-  }
+  const sponsorTier = tier || "Partner";
 
   try {
-    const existingResult = await pool.query(
-      `SELECT id FROM sponsors WHERE user_id = $1`,
-      [userId]
+    await pool.query("BEGIN");
+    const userResult = await pool.query(
+      "SELECT id, email, password FROM users WHERE email = $1",
+      [email]
     );
 
-    if (existingResult.rows.length > 0) {
-      const updateSql = `
-                UPDATE sponsors SET
-                                    company_name = $1,
-                                    website = $2,
-                                    logo_url = $3,
-                                    contact_email = $4,
-                                    description = $5,
-                                    tier = $6
-                WHERE user_id = $7
-            `;
-      await pool.query(updateSql, [
-        company_name,
-        website || null,
-        logo_url || null,
-        contact_email,
-        description || null,
-        tier || "Partner",
-        userId,
-      ]);
-      return res
-        .status(200)
-        .json({ message: "Sponsor profile updated successfully." });
-    } else {
-      const insertSql = `
-                INSERT INTO sponsors
-                (user_id, company_name, website, logo_url, contact_email, description, tier)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING id
-            `;
-      const insertResult = await pool.query(insertSql, [
-        userId,
-        company_name,
-        website || null,
-        logo_url || null,
-        contact_email,
-        description || null,
-        tier || "Partner",
-      ]);
+    if (userResult.rows.length === 0) {
+      await pool.query("ROLLBACK");
+      return res.status(404).json({ message: "User not found." });
+    }
 
-      return res.status(201).json({
-        message: "Sponsor profile created successfully.",
-        sponsorId: insertResult.rows[0].id,
+    const userId = userResult.rows[0].id;
+    const userEmail = userResult.rows[0].email;
+    const userPassword = userResult.rows[0].password;
+
+    const updateUserQuery = `
+        UPDATE users 
+        SET user_type = 'SPONSOR', wallet_address = $1
+        WHERE id = $2 
+        RETURNING id;
+    `;
+    await pool.query(updateUserQuery, [walletAddress, userId]);
+
+    const insertSponsorQuery = `
+        INSERT INTO sponsors (
+            email, password, user_id, company_name, logo_url, description, tier
+        ) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7) 
+        RETURNING id;
+    `;
+
+    const sponsorInsertResult = await pool.query(insertSponsorQuery, [
+      userEmail,
+      userPassword,
+      userId,
+       companyName,
+      logoUrl,
+      description,
+      sponsorTier,
+    ]);
+
+    await pool.query("COMMIT");
+
+    res.status(201).json({
+      message:
+        "Sponsor registration completed successfully and user profile updated.",
+      sponsorId: sponsorInsertResult.rows[0].id,
+    });
+  } catch (error: any) {
+    await pool.query("ROLLBACK");
+    console.error("Sponsor registration failed:", error);
+
+    if (error.code === "23505") {
+      return res.status(409).json({
+        message:
+          "This user is already registered as a sponsor or the contact email is already used.",
       });
     }
-  } catch (error) {
-    console.error("Error in createSponsorProfile:", error);
-    res
-      .status(500)
-      .json({ message: "Server Error during profile creation/update." });
+
+    res.status(500).json({
+      message: "An internal server error occurred during registration.",
+    });
   }
 };
-
 export const getMySponsorProfile = async (req: Request, res: Response) => {
   const userId = req.user?.id;
 
